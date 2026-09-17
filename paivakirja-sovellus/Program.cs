@@ -41,11 +41,50 @@ class Program
     {
         string teksti;
         Console.WriteLine("Lisää tekstiä:\n");
+        Console.Write("\t");
         teksti = Console.ReadLine();
         if (teksti != "") //jos käyttäjän syöte EI ole tyhjä, teksti lisätään.
         {
             teksteja.Add(teksti);
         }
+    }
+
+    //Tekstin muokkaaminen
+    static void muokkaatekstia()
+    {
+        paivakirjalista(); //päiväkirja lista
+
+        Console.WriteLine("Mitä tekstiä haluat muokata?: (numero)\n");
+
+        string syote = Console.ReadLine(); //käyttäjän syöte
+
+        // Yritetään muuttaa syöte numeroksi
+        if (int.TryParse(syote, out int numero)) //jos syöte on numero
+        {
+            int indeksi = numero - 1;  // koska lista alkaa nollasta
+
+            if (indeksi >= 0 && indeksi < teksteja.Count) //jos indeksin numero on listassa
+            {
+                Console.WriteLine($"\tNykyinen teksti: {teksteja[indeksi]} \n"); //vanha teksti
+                Console.Write("\tAnna uusi teksti: "); //uusi teksti
+
+                teksteja[indeksi] = Console.ReadLine();  // korvataan vanha teksti uudella
+
+                Console.WriteLine("\nTeksti muokattu!\n");
+            }
+            else //jos indeksin numeroa ei ole listassa
+            {
+                Console.WriteLine("\nVirheellinen numero!\n");
+            }
+        }
+        else //jos syöte ei ole numero
+        {
+            Console.WriteLine("\nSyötä numero!\n");
+        }
+
+        // odottaa käyttäjän vastausta jatkaakseen
+        Console.Write("Paina jotain nappia jatkaaksesi...");
+        Console.ReadKey();
     }
 
 
@@ -64,7 +103,7 @@ class Program
                     paivakirjalista(); //päiväkirja lista
 
                     // odottaa käyttäjän vastausta jatkaakseen
-                    Console.Write("Press any key to continue...");
+                    Console.Write("Paina jotain nappia jatkaaksesi...");
                     Console.ReadKey();
                     break;
 
@@ -76,11 +115,13 @@ class Program
                     paivakirjalista(); //Päiväkirja lista
 
                     // odottaa käyttäjän vastausta jatkaakseen
-                    Console.Write("Press any key to continue...");
+                    Console.Write("Paina jotain nappia jatkaaksesi...");
                     Console.ReadKey();
                     break;
 
                 case "m": //muokkaa tekstiä
+                    Console.Clear(); //tyhjää konsolen
+                    muokkaatekstia(); //muokkaa tekstiä
                     break;
 
                 case "p": //poista tekstiä
