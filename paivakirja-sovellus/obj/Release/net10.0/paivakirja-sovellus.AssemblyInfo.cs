@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("paivakirja-sovellus")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cb0447f6037fad0a1b4a9f55eb6d6e7becf348ae")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b40a0936551c7b6e19cb4f6717741e3722db15e2")]
 [assembly: System.Reflection.AssemblyProductAttribute("paivakirja-sovellus")]
 [assembly: System.Reflection.AssemblyTitleAttribute("paivakirja-sovellus")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

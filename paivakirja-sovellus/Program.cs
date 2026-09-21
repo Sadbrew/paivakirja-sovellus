@@ -1,13 +1,31 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 
 class Program
 {
     /*Globaaleja muuttujia*/
     static List<string> teksteja = new List<string>(); //teksteja lista
 
+    static string filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "teksteja.csv"); //tallennus paikka teksteja.csv tiedostolle
 
     /*funktiot*/
+    // ========== SAVE ==========
+    public static void SaveList() //Tiedostojen tallentaminen tiedostoon.
+    {
+        File.WriteAllLines(filePath, teksteja);
+    }
+
+    // ========== LOAD ==========
+    public static void LoadList() //Tietojen lataaminen tiedostosta
+    {
+        if (File.Exists(filePath)) //jos tiedosto on olemassa
+        {
+            teksteja = File.ReadAllLines(filePath).ToList(); //päivittää tiedoston
+        }
+        // jos tiedosto ei ole olemassa -> lsita pysyy sellaisenaan
+    }
+
     //Päiväkirja lista
     static void paivakirjalista()
     {
@@ -44,6 +62,8 @@ class Program
             Console.Write("Paina jotain nappia jatkaaksesi...");
             Console.ReadKey();
         }
+
+        SaveList(); //tallentaa tiedot
     }
 
     //Tekstin muokkaaminen
@@ -92,6 +112,8 @@ class Program
             Console.WriteLine("\nSyötä numero!\n");
         }
 
+        SaveList(); //tallentaa tiedot
+
         // odottaa käyttäjän vastausta jatkaakseen
         Console.Write("Paina jotain nappia jatkaaksesi...");
         Console.ReadKey();
@@ -138,6 +160,8 @@ class Program
             Console.WriteLine("\nSyötä numero!\n");
         }
 
+        SaveList(); //tallentaa tiedot
+
         // odottaa käyttäjän vastausta jatkaakseen
         Console.Write("Paina jotain nappia jatkaaksesi...");
         Console.ReadKey();
@@ -148,6 +172,7 @@ class Program
     {
         while (true)
         {
+            LoadList(); // tietojen lataus
             Console.Clear();
 
             // Ohjelman otsikko
