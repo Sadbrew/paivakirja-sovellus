@@ -2,212 +2,322 @@
 using System.Collections.Generic;
 using System.IO;
 
+// Yksinkertainen päiväkirjamerkintä-luokka
+class DiaryEntry
+{
+    public DateTime Date { get; set; }      // Merkinnän päivämäärä ja aika
+    public string Title { get; set; }       // Merkinnän otsikko
+    public string Content { get; set; }     // Merkinnän sisältö
+}
+
 class Program
 {
-    /*Globaaleja muuttujia*/
-    static List<string> teksteja = new List<string>(); //teksteja lista
+    /* Globaaleja muuttujia */
+    static List<DiaryEntry> entries = new List<DiaryEntry>(); // Lista kaikista päiväkirjamerkinnöistä
 
-    static string filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "teksteja.csv"); //tallennus paikka teksteja.csv tiedostolle
+    // Tiedoston tallennuspolku (samaan kansioon kuin .exe)
+    static string filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "teksteja.csv");
 
-    /*funktiot*/
-    // ========== SAVE ==========
-    public static void SaveList() //Tiedostojen tallentaminen tiedostoon.
+    /* ========== SAVE ========== */
+    // Tallentaa kaikki merkinnät tiedostoon
+    public static void SaveList()
     {
-        File.WriteAllLines(filePath, teksteja);
-    }
+        List<string> lines = new List<string>();
 
-    // ========== LOAD ==========
-    public static void LoadList() //Tietojen lataaminen tiedostosta
-    {
-        if (File.Exists(filePath)) //jos tiedosto on olemassa
+        // Käydään kaikki merkinnät läpi yksi kerrallaan
+        foreach (var entry in entries)
         {
-            teksteja = File.ReadAllLines(filePath).ToList(); //päivittää tiedoston
+            // Tallennusmuoto: Päivämäärä|Otsikko|Sisältö
+            string line = $"{entry.Date:yyyy-MM-dd HH:mm}|{entry.Title}|{entry.Content}";
+            lines.Add(line);
         }
-        // jos tiedosto ei ole olemassa -> lsita pysyy sellaisenaan
+
+        // Kirjoitetaan kaikki rivit tiedostoon
+        File.WriteAllLines(filePath, lines);
     }
 
-    //Päiväkirja lista
+    /* ========== LOAD ========== */
+    // Lataa merkinnät tiedostosta
+    public static void LoadList()
+    {
+        entries.Clear(); // Tyhjennetään lista ennen uutta latausta
+
+        // Tarkistetaan onko tiedosto olemassa
+        if (File.Exists(filePath))
+        {
+            string[] lines = File.ReadAllLines(filePath);
+
+            // Käydään jokainen rivi läpi
+            foreach (string line in lines)
+            {
+                // Ohitetaan tyhjät rivit
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    continue;
+                }
+
+                // Jaetaan rivi osiin pystyviivalla
+                string[] parts = line.Split('|');
+
+                // Tarkistetaan että rivissä on tarpeeksi osia
+                if (parts.Length >= 3)
+                {
+                    DiaryEntry entry = new DiaryEntry();
+
+                    // Yritetään lukea päivämäärä
+                    DateTime.TryParse(parts[0], out DateTime date);
+                    entry.Date = date;
+                    entry.Title = parts[1];
+                    entry.Content = parts[2];
+
+                    entries.Add(entry);
+                }
+            }
+        }
+        // Jos tiedostoa ei ole olemassa, lista jää tyhjäksi (ei tehdä mitään)
+    }
+
+    /* Päiväkirja lista */
+    // Tulostaa kaikki merkinnät numeroituna
     static void paivakirjalista()
     {
-        Console.WriteLine("Päiväkirjan tekstejä: \n");
-        for (int i = 0; i < teksteja.Count; i++) //tulostaa tekstit yksitellen teksteja listasta.
+        Console.WriteLine("Päiväkirjan merkinnät:\n");
+
+        // Jos listassa ei ole yhtään merkintää
+        if (entries.Count == 0)
         {
-            Console.WriteLine($"\t {i + 1}. {teksteja[i]} \n");
+            Console.WriteLine("\t(Ei merkintöjä vielä)\n");
+            return; // Poistutaan funktiosta heti
+        }
+
+        // Käydään kaikki merkinnät läpi ja tulostetaan ne
+        for (int i = 0; i < entries.Count; i++)
+        {
+            var e = entries[i];
+            Console.WriteLine($"\t{i + 1}. [{e.Date:dd.MM.yyyy HH:mm}] {e.Title}");
+            Console.WriteLine($"\t   {e.Content}\n");
         }
     }
 
-    //Tekstin lisääminen listaan
+    /* Tekstin lisääminen */
+    // Lisää uuden merkinnän listaan
     static void lisaatekstia()
     {
-        string teksti;
-        Console.WriteLine("Lisää tekstiä:\n");
-        Console.Write("\t");
-        teksti = Console.ReadLine(); //käyttäjän syöte
-        if (teksti != "") //jos käyttäjän syöte EI ole tyhjä, teksti lisätään.
+        Console.WriteLine("Lisää uusi merkintä:\n");
+
+        Console.Write("\tOtsikko: ");
+        string title = Console.ReadLine();
+
+        Console.Write("\tSisältö: ");
+        string content = Console.ReadLine();
+
+        // Tarkistetaan onko jompi kumpi kentistä täytetty
+        if (!string.IsNullOrWhiteSpace(title) || !string.IsNullOrWhiteSpace(content))
         {
-            teksteja.Add(teksti);
+            // Luodaan uusi DiaryEntry-olio
+            DiaryEntry uusi = new DiaryEntry
+            {
+                Date = DateTime.Now,           // Asetetaan nykyinen aika
+                Title = title ?? "",
+                Content = content ?? ""
+            };
 
-            Console.Clear(); //tyhjää konsolen
-            paivakirjalista(); //Päiväkirja lista
+            entries.Add(uusi); // Lisätään uusi merkintä listaan
 
-            // odottaa käyttäjän vastausta jatkaakseen
-            Console.Write("Paina jotain nappia jatkaaksesi...");
-            Console.ReadKey();
+            Console.Clear();
+            paivakirjalista();
+            Console.WriteLine("Merkintä lisätty!\n");
         }
-        else // jos syöte ON tyhjä
+        else // Molemmat kentät olivat tyhjiä
         {
-            Console.WriteLine("\nKenttä tyhjä. Tekstiä ei lisätty.\n");
-
-            // odottaa käyttäjän vastausta jatkaakseen
-            Console.Write("Paina jotain nappia jatkaaksesi...");
-            Console.ReadKey();
+            Console.WriteLine("\nMolemmat kentät olivat tyhjiä. Merkintää ei lisätty.\n");
         }
 
-        SaveList(); //tallentaa tiedot
+        SaveList(); // Tallennetaan muutokset tiedostoon
+
+        Console.Write("Paina jotain nappia jatkaaksesi...");
+        Console.ReadKey();
     }
 
-    //Tekstin muokkaaminen
+    /* Tekstin muokkaaminen */
+    // Muokkaa olemassa olevaa merkintää
     static void muokkaatekstia()
     {
-        paivakirjalista(); //päiväkirja lista
+        paivakirjalista();
 
-        Console.WriteLine("Mitä tekstiä haluat muokata?: (numero)\n");
-
-        string syote = Console.ReadLine(); //käyttäjän syöte
-
-        // Yritetään muuttaa syöte numeroksi
-        if (int.TryParse(syote, out int numero)) //jos syöte on numero
+        // Jos listassa ei ole merkintöjä, ei voida muokata mitään
+        if (entries.Count == 0)
         {
-            int indeksi = numero - 1;  // koska lista alkaa nollasta
+            Console.Write("Paina jotain nappia jatkaaksesi...");
+            Console.ReadKey();
+            return;
+        }
 
-            if (indeksi >= 0 && indeksi < teksteja.Count) //jos indeksin numero on listassa
+        Console.WriteLine("Mitä merkintää haluat muokata? (numero)\n");
+        string syote = Console.ReadLine();
+
+        // Yritetään muuttaa käyttäjän syöte numeroksi
+        if (int.TryParse(syote, out int numero))
+        {
+            int indeksi = numero - 1; // Lista alkaa nollasta, siksi -1
+
+            // Tarkistetaan onko indeksi listan rajojen sisällä
+            if (indeksi >= 0 && indeksi < entries.Count)
             {
+                var entry = entries[indeksi];
+
                 Console.Clear();
+                Console.WriteLine($"Nykyinen merkintä:\n");
+                Console.WriteLine($"\tPäivämäärä: {entry.Date:dd.MM.yyyy HH:mm}");
+                Console.WriteLine($"\tOtsikko:    {entry.Title}");
+                Console.WriteLine($"\tSisältö:    {entry.Content}\n");
 
-                Console.WriteLine($"\tNykyinen teksti: {teksteja[indeksi]} \n"); //vanha teksti
-                Console.Write("\tAnna uusi teksti: "); //uusi teksti
+                Console.Write("Uusi otsikko (jätä tyhjäksi jos et muuta): ");
+                string uusiTitle = Console.ReadLine();
 
-                string uusiteksti; // uusi teksti
-                uusiteksti = Console.ReadLine();
+                Console.Write("Uusi sisältö (jätä tyhjäksi jos et muuta): ");
+                string uusiContent = Console.ReadLine();
 
-                if (uusiteksti != "") //jos käyttäjän syöte EI ole tyhjä, teksti muokataan.
+                // Päivitetään otsikko vain jos käyttäjä kirjoitti jotain
+                if (!string.IsNullOrWhiteSpace(uusiTitle))
                 {
-                    teksteja[indeksi] = uusiteksti;  // korvataan vanha teksti uudella
-
-                    Console.WriteLine("\nTeksti muokattu!\n");
+                    entry.Title = uusiTitle;
                 }
-                else // jos syöte ON tyhjä
+
+                // Päivitetään sisältö vain jos käyttäjä kirjoitti jotain
+                if (!string.IsNullOrWhiteSpace(uusiContent))
                 {
-                    Console.WriteLine("\nKenttä tyhjä. Tekstiä ei muutettu.\n");
+                    entry.Content = uusiContent;
                 }
 
+                // Päivitetään myös muokkausaika
+                entry.Date = DateTime.Now;
+
+                Console.WriteLine("\nMerkintä muokattu!\n");
             }
-            else //jos indeksin numeroa ei ole listassa
+            else // Numero ei ole listassa
             {
                 Console.WriteLine("\nVirheellinen numero!\n");
             }
         }
-        else //jos syöte ei ole numero
+        else // Syöte ei ollut numero
         {
             Console.WriteLine("\nSyötä numero!\n");
         }
 
-        SaveList(); //tallentaa tiedot
+        SaveList(); // Tallennetaan muutokset
 
-        // odottaa käyttäjän vastausta jatkaakseen
         Console.Write("Paina jotain nappia jatkaaksesi...");
         Console.ReadKey();
     }
 
-    //Tekstin poistaminen
+    /* Tekstin poistaminen */
+    // Poistaa merkinnän listasta
     static void poistatekstia()
     {
-        paivakirjalista(); //päiväkirja lista
+        paivakirjalista();
 
-        Console.WriteLine("Minkä tekstin haluat poistaa?: (numero)\n");
-
-        string syote = Console.ReadLine(); //käyttäjän syöte
-
-        // Yritetään muuttaa syöte numeroksi
-        if (int.TryParse(syote, out int numero)) //jos syöte on numero
+        // Jos listassa ei ole merkintöjä, ei voida poistaa mitään
+        if (entries.Count == 0)
         {
-            int indeksi = numero - 1;  // koska lista alkaa nollasta
+            Console.Write("Paina jotain nappia jatkaaksesi...");
+            Console.ReadKey();
+            return;
+        }
 
-            if (indeksi >= 0 && indeksi < teksteja.Count) //jos indeksin numero on listassa
+        Console.WriteLine("Minkä merkinnän haluat poistaa? (numero)\n");
+        string syote = Console.ReadLine();
+
+        // Yritetään muuttaa käyttäjän syöte numeroksi
+        if (int.TryParse(syote, out int numero))
+        {
+            int indeksi = numero - 1; // Lista alkaa nollasta
+
+            // Tarkistetaan onko indeksi listan rajojen sisällä
+            if (indeksi >= 0 && indeksi < entries.Count)
             {
-                Console.WriteLine("\nHaluatko varmasti poistaa tekstin:\n");
-                Console.WriteLine($"\t{numero}. {teksteja[indeksi]}\n");
+                var entry = entries[indeksi];
 
+                Console.WriteLine("\nHaluatko varmasti poistaa tämän merkinnän?\n");
+                Console.WriteLine($"\t{numero}. [{entry.Date:dd.MM.yyyy}] {entry.Title}");
+                Console.WriteLine($"\t   {entry.Content}\n");
                 Console.WriteLine("k - KYLLÄ / e - EI\n");
-                switch (Console.ReadLine()) // vahvistuskysely
+
+                // Kysytään vahvistus käyttäjältä
+                switch (Console.ReadLine()?.ToLower())
                 {
-                    case "k": //kyllä
-                        teksteja.RemoveAt(indeksi); //poistaa indeksin listasta
+                    case "k": // Käyttäjä valitsi kyllä
+                        entries.RemoveAt(indeksi);
                         Console.WriteLine("\nPoistaminen onnistui!\n");
                         break;
-                    case "e": //ei
+
+                    case "e": // Käyttäjä valitsi ei
                         Console.WriteLine("\nPoistaminen keskeytetty.\n");
+                        break;
+
+                    default: // Jokin muu syöte
+                        Console.WriteLine("\nVirheellinen valinta. Poistaminen keskeytetty.\n");
                         break;
                 }
             }
-            else //jos indeksin numeroa ei ole listassa
+            else // Numero ei ole listassa
             {
                 Console.WriteLine("\nVirheellinen numero!\n");
             }
         }
-        else //jos syöte ei ole numero
+        else // Syöte ei ollut numero
         {
             Console.WriteLine("\nSyötä numero!\n");
         }
 
-        SaveList(); //tallentaa tiedot
+        SaveList(); // Tallennetaan muutokset
 
-        // odottaa käyttäjän vastausta jatkaakseen
         Console.Write("Paina jotain nappia jatkaaksesi...");
         Console.ReadKey();
     }
 
-    /*main*/
+    /* Main */
     static void Main(string[] args)
     {
+        // Pääsilmukka - ohjelma pyörii kunnes käyttäjä valitsee exit
         while (true)
         {
-            LoadList(); // tietojen lataus
+            LoadList();         // Ladataan tiedot tiedostosta
             Console.Clear();
 
             // Ohjelman otsikko
-            Console.WriteLine("\tPäiväkirjasovellus\r");
+            Console.WriteLine("\tPäiväkirjasovellus");
             Console.WriteLine("\t------------------\n");
 
-            paivakirjalista(); //päiväkirja lista
+            paivakirjalista();  // Näytetään nykyiset merkinnät
 
-            // Kysyy mitä käyttäjä haluaa tehdä
+            // Käyttäjän valikko
             Console.WriteLine("Mitä haluat tehdä?\n");
-            Console.WriteLine("\tl - Lisää tekstiä");
-            Console.WriteLine("\tm - Muokkaa tekstiä");
-            Console.WriteLine("\tp - Poista tekstiä\n");
-            Console.WriteLine("\texit - Close the program\n");
+            Console.WriteLine("\tl - Lisää merkintä");
+            Console.WriteLine("\tm - Muokkaa merkintää");
+            Console.WriteLine("\tp - Poista merkintä\n");
+            Console.WriteLine("\texit - Sulje ohjelma\n");
 
-            //Käyttäjän valinta päävalikossa
-            switch (Console.ReadLine())
+            // Luetaan käyttäjän valinta
+            switch (Console.ReadLine()?.ToLower())
             {
-                case "l": //lisää tekstiä
-                    Console.Clear(); //tyhjää konsolen
-                    lisaatekstia(); //lisätään tekstiä
+                case "l": // Lisää merkintä
+                    Console.Clear();
+                    lisaatekstia();
                     break;
 
-                case "m": //muokkaa tekstiä
-                    Console.Clear(); //tyhjää konsolen
-                    muokkaatekstia(); //muokkaa tekstiä
+                case "m": // Muokkaa merkintää
+                    Console.Clear();
+                    muokkaatekstia();
                     break;
 
-                case "p": //poista tekstiä
-                    Console.Clear(); // tyhjää konsolen
-                    poistatekstia(); // poistaa tekstiä
+                case "p": // Poista merkintä
+                    Console.Clear();
+                    poistatekstia();
                     break;
 
-                case "exit": //poistuu ohjelmasta
-                    return;
+                case "exit": // Sulje ohjelma
+                    return; // Poistutaan Main-funktiosta → ohjelma loppuu
             }
         }
     }
