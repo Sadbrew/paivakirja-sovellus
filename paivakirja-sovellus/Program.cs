@@ -8,24 +8,6 @@ class Program
 
 
     /*funktiot*/
-    //päävalikon tekstit
-    static void paavalikko()
-    {
-        Console.Clear();
-
-        // Ohjelman otsikko
-        Console.WriteLine("\tPäiväkirjasovellus\r");
-        Console.WriteLine("\t------------------\n");
-
-        // Kysyy mitä käyttäjä haluaa tehdä
-        Console.WriteLine("Mitä haluat tehdä?\n");
-        Console.WriteLine("\ta - Avaa lista");
-        Console.WriteLine("\tl - Lisää tekstiä");
-        Console.WriteLine("\tm - Muokkaa tekstiä");
-        Console.WriteLine("\tp - Poista tekstiä\n");
-        Console.WriteLine("\texit - Close the program\n");
-    }
-
     //Päiväkirja lista
     static void paivakirjalista()
     {
@@ -42,10 +24,25 @@ class Program
         string teksti;
         Console.WriteLine("Lisää tekstiä:\n");
         Console.Write("\t");
-        teksti = Console.ReadLine();
+        teksti = Console.ReadLine(); //käyttäjän syöte
         if (teksti != "") //jos käyttäjän syöte EI ole tyhjä, teksti lisätään.
         {
             teksteja.Add(teksti);
+
+            Console.Clear(); //tyhjää konsolen
+            paivakirjalista(); //Päiväkirja lista
+
+            // odottaa käyttäjän vastausta jatkaakseen
+            Console.Write("Paina jotain nappia jatkaaksesi...");
+            Console.ReadKey();
+        }
+        else // jos syöte ON tyhjä
+        {
+            Console.WriteLine("\nKenttä tyhjä. Tekstiä ei lisätty.\n");
+
+            // odottaa käyttäjän vastausta jatkaakseen
+            Console.Write("Paina jotain nappia jatkaaksesi...");
+            Console.ReadKey();
         }
     }
 
@@ -65,12 +62,25 @@ class Program
 
             if (indeksi >= 0 && indeksi < teksteja.Count) //jos indeksin numero on listassa
             {
+                Console.Clear();
+
                 Console.WriteLine($"\tNykyinen teksti: {teksteja[indeksi]} \n"); //vanha teksti
                 Console.Write("\tAnna uusi teksti: "); //uusi teksti
 
-                teksteja[indeksi] = Console.ReadLine();  // korvataan vanha teksti uudella
+                string uusiteksti; // uusi teksti
+                uusiteksti = Console.ReadLine();
 
-                Console.WriteLine("\nTeksti muokattu!\n");
+                if (uusiteksti != "") //jos käyttäjän syöte EI ole tyhjä, teksti muokataan.
+                {
+                    teksteja[indeksi] = uusiteksti;  // korvataan vanha teksti uudella
+
+                    Console.WriteLine("\nTeksti muokattu!\n");
+                }
+                else // jos syöte ON tyhjä
+                {
+                    Console.WriteLine("\nKenttä tyhjä. Tekstiä ei muutettu.\n");
+                }
+
             }
             else //jos indeksin numeroa ei ole listassa
             {
@@ -87,36 +97,78 @@ class Program
         Console.ReadKey();
     }
 
+    //Tekstin poistaminen
+    static void poistatekstia()
+    {
+        paivakirjalista(); //päiväkirja lista
+
+        Console.WriteLine("Minkä tekstin haluat poistaa?: (numero)\n");
+
+        string syote = Console.ReadLine(); //käyttäjän syöte
+
+        // Yritetään muuttaa syöte numeroksi
+        if (int.TryParse(syote, out int numero)) //jos syöte on numero
+        {
+            int indeksi = numero - 1;  // koska lista alkaa nollasta
+
+            if (indeksi >= 0 && indeksi < teksteja.Count) //jos indeksin numero on listassa
+            {
+                Console.WriteLine("\nHaluatko varmasti poistaa tekstin:\n");
+                Console.WriteLine($"\t{numero}. {teksteja[indeksi]}\n");
+
+                Console.WriteLine("k - KYLLÄ / e - EI\n");
+                switch (Console.ReadLine()) // vahvistuskysely
+                {
+                    case "k": //kyllä
+                        teksteja.RemoveAt(indeksi); //poistaa indeksin listasta
+                        Console.WriteLine("\nPoistaminen onnistui!\n");
+                        break;
+                    case "e": //ei
+                        Console.WriteLine("\nPoistaminen keskeytetty.\n");
+                        break;
+                }
+            }
+            else //jos indeksin numeroa ei ole listassa
+            {
+                Console.WriteLine("\nVirheellinen numero!\n");
+            }
+        }
+        else //jos syöte ei ole numero
+        {
+            Console.WriteLine("\nSyötä numero!\n");
+        }
+
+        // odottaa käyttäjän vastausta jatkaakseen
+        Console.Write("Paina jotain nappia jatkaaksesi...");
+        Console.ReadKey();
+    }
 
     /*main*/
     static void Main(string[] args)
     {
         while (true)
         {
-            paavalikko(); //päävalikko
+            Console.Clear();
+
+            // Ohjelman otsikko
+            Console.WriteLine("\tPäiväkirjasovellus\r");
+            Console.WriteLine("\t------------------\n");
+
+            paivakirjalista(); //päiväkirja lista
+
+            // Kysyy mitä käyttäjä haluaa tehdä
+            Console.WriteLine("Mitä haluat tehdä?\n");
+            Console.WriteLine("\tl - Lisää tekstiä");
+            Console.WriteLine("\tm - Muokkaa tekstiä");
+            Console.WriteLine("\tp - Poista tekstiä\n");
+            Console.WriteLine("\texit - Close the program\n");
 
             //Käyttäjän valinta päävalikossa
             switch (Console.ReadLine())
             {
-                case "a": //avaa lista
-                    Console.Clear(); //tyhjää konsolen
-                    paivakirjalista(); //päiväkirja lista
-
-                    // odottaa käyttäjän vastausta jatkaakseen
-                    Console.Write("Paina jotain nappia jatkaaksesi...");
-                    Console.ReadKey();
-                    break;
-
                 case "l": //lisää tekstiä
                     Console.Clear(); //tyhjää konsolen
                     lisaatekstia(); //lisätään tekstiä
-
-                    Console.Clear(); //tyhjää konsolen
-                    paivakirjalista(); //Päiväkirja lista
-
-                    // odottaa käyttäjän vastausta jatkaakseen
-                    Console.Write("Paina jotain nappia jatkaaksesi...");
-                    Console.ReadKey();
                     break;
 
                 case "m": //muokkaa tekstiä
@@ -125,6 +177,8 @@ class Program
                     break;
 
                 case "p": //poista tekstiä
+                    Console.Clear(); // tyhjää konsolen
+                    poistatekstia(); // poistaa tekstiä
                     break;
 
                 case "exit": //poistuu ohjelmasta
