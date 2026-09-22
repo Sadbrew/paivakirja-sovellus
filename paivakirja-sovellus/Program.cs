@@ -1,82 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
-
-// Yksinkertainen päiväkirjamerkintä-luokka
-class DiaryEntry
-{
-    public DateTime Date { get; set; }      // Merkinnän päivämäärä ja aika
-    public string Title { get; set; }       // Merkinnän otsikko
-    public string Content { get; set; }     // Merkinnän sisältö
-}
 
 class Program
 {
-    /* Globaaleja muuttujia */
+    // ========== MUUTTUJIA ==========
     static List<DiaryEntry> entries = new List<DiaryEntry>(); // Lista kaikista päiväkirjamerkinnöistä
 
-    // Tiedoston tallennuspolku (samaan kansioon kuin .exe)
-    static string filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "teksteja.csv");
-
-    /* ========== SAVE ========== */
-    // Tallentaa kaikki merkinnät tiedostoon
-    public static void SaveList()
-    {
-        List<string> lines = new List<string>();
-
-        // Käydään kaikki merkinnät läpi yksi kerrallaan
-        foreach (var entry in entries)
-        {
-            // Tallennusmuoto: Päivämäärä|Otsikko|Sisältö
-            string line = $"{entry.Date:yyyy-MM-dd HH:mm}|{entry.Title}|{entry.Content}";
-            lines.Add(line);
-        }
-
-        // Kirjoitetaan kaikki rivit tiedostoon
-        File.WriteAllLines(filePath, lines);
-    }
-
-    /* ========== LOAD ========== */
-    // Lataa merkinnät tiedostosta
-    public static void LoadList()
-    {
-        entries.Clear(); // Tyhjennetään lista ennen uutta latausta
-
-        // Tarkistetaan onko tiedosto olemassa
-        if (File.Exists(filePath))
-        {
-            string[] lines = File.ReadAllLines(filePath);
-
-            // Käydään jokainen rivi läpi
-            foreach (string line in lines)
-            {
-                // Ohitetaan tyhjät rivit
-                if (string.IsNullOrWhiteSpace(line))
-                {
-                    continue;
-                }
-
-                // Jaetaan rivi osiin pystyviivalla
-                string[] parts = line.Split('|');
-
-                // Tarkistetaan että rivissä on tarpeeksi osia
-                if (parts.Length >= 3)
-                {
-                    DiaryEntry entry = new DiaryEntry();
-
-                    // Yritetään lukea päivämäärä
-                    DateTime.TryParse(parts[0], out DateTime date);
-                    entry.Date = date;
-                    entry.Title = parts[1];
-                    entry.Content = parts[2];
-
-                    entries.Add(entry);
-                }
-            }
-        }
-        // Jos tiedostoa ei ole olemassa, lista jää tyhjäksi (ei tehdä mitään)
-    }
-
+    // ========== FUNKTIOT ==========
     /* Päiväkirja lista */
     // Tulostaa kaikki merkinnät numeroituna
     static void paivakirjalista()
@@ -100,16 +30,16 @@ class Program
     }
 
     /* Tekstin lisääminen */
-    // Lisää uuden merkinnän listaan
+    // Lisää uuden merkinnän tietokantaan
     static void lisaatekstia()
     {
         Console.WriteLine("Lisää uusi merkintä:\n");
 
         Console.Write("\tOtsikko: ");
-        string title = Console.ReadLine();
+        string title = Console.ReadLine() ?? "";
 
         Console.Write("\tSisältö: ");
-        string content = Console.ReadLine();
+        string content = Console.ReadLine() ?? "";
 
         // Tarkistetaan onko jompi kumpi kentistä täytetty
         if (!string.IsNullOrWhiteSpace(title) || !string.IsNullOrWhiteSpace(content))
@@ -118,11 +48,15 @@ class Program
             DiaryEntry uusi = new DiaryEntry
             {
                 Date = DateTime.Now,           // Asetetaan nykyinen aika
-                Title = title ?? "",
-                Content = content ?? ""
+                Title = title,
+                Content = content
             };
 
-            entries.Add(uusi); // Lisätään uusi merkintä listaan
+            // Tallennetaan tietokantaan
+            Database.AddEntry(uusi);
+
+            // Päivitetään paikallinen lista
+            entries = Database.LoadEntries();
 
             Console.Clear();
             paivakirjalista();
@@ -132,8 +66,6 @@ class Program
         {
             Console.WriteLine("\nMolemmat kentät olivat tyhjiä. Merkintää ei lisätty.\n");
         }
-
-        SaveList(); // Tallennetaan muutokset tiedostoon
 
         Console.Write("Paina jotain nappia jatkaaksesi...");
         Console.ReadKey();
@@ -154,7 +86,7 @@ class Program
         }
 
         Console.WriteLine("Mitä merkintää haluat muokata? (numero)\n");
-        string syote = Console.ReadLine();
+        string syote = Console.ReadLine() ?? "";
 
         // Yritetään muuttaa käyttäjän syöte numeroksi
         if (int.TryParse(syote, out int numero))
@@ -173,10 +105,10 @@ class Program
                 Console.WriteLine($"\tSisältö:    {entry.Content}\n");
 
                 Console.Write("Uusi otsikko (jätä tyhjäksi jos et muuta): ");
-                string uusiTitle = Console.ReadLine();
+                string uusiTitle = Console.ReadLine() ?? "";
 
                 Console.Write("Uusi sisältö (jätä tyhjäksi jos et muuta): ");
-                string uusiContent = Console.ReadLine();
+                string uusiContent = Console.ReadLine() ?? "";
 
                 // Päivitetään otsikko vain jos käyttäjä kirjoitti jotain
                 if (!string.IsNullOrWhiteSpace(uusiTitle))
@@ -193,6 +125,12 @@ class Program
                 // Päivitetään myös muokkausaika
                 entry.Date = DateTime.Now;
 
+                // Tallennetaan muutos tietokantaan
+                Database.UpdateEntry(entry);
+
+                // Päivitetään paikallinen lista
+                entries = Database.LoadEntries();
+
                 Console.WriteLine("\nMerkintä muokattu!\n");
             }
             else // Numero ei ole listassa
@@ -205,14 +143,12 @@ class Program
             Console.WriteLine("\nSyötä numero!\n");
         }
 
-        SaveList(); // Tallennetaan muutokset
-
         Console.Write("Paina jotain nappia jatkaaksesi...");
         Console.ReadKey();
     }
 
     /* Tekstin poistaminen */
-    // Poistaa merkinnän listasta
+    // Poistaa merkinnän tietokannasta
     static void poistatekstia()
     {
         paivakirjalista();
@@ -226,7 +162,7 @@ class Program
         }
 
         Console.WriteLine("Minkä merkinnän haluat poistaa? (numero)\n");
-        string syote = Console.ReadLine();
+        string syote = Console.ReadLine() ?? "";
 
         // Yritetään muuttaa käyttäjän syöte numeroksi
         if (int.TryParse(syote, out int numero))
@@ -244,10 +180,15 @@ class Program
                 Console.WriteLine("k - KYLLÄ / e - EI\n");
 
                 // Kysytään vahvistus käyttäjältä
-                switch (Console.ReadLine()?.ToLower())
+                switch ((Console.ReadLine() ?? "").ToLower())
                 {
                     case "k": // Käyttäjä valitsi kyllä
-                        entries.RemoveAt(indeksi);
+                        // Poistetaan tietokannasta Id:n perusteella
+                        Database.DeleteEntry(entry.Id);
+
+                        // Päivitetään paikallinen lista
+                        entries = Database.LoadEntries();
+
                         Console.WriteLine("\nPoistaminen onnistui!\n");
                         break;
 
@@ -270,19 +211,29 @@ class Program
             Console.WriteLine("\nSyötä numero!\n");
         }
 
-        SaveList(); // Tallennetaan muutokset
-
         Console.Write("Paina jotain nappia jatkaaksesi...");
         Console.ReadKey();
     }
 
-    /* Main */
+    // ========== MAIN ==========
     static void Main(string[] args)
     {
+        // Testataan tietokantayhteys ohjelman käynnistyessä
+        if (!Database.TestConnection())
+        {
+            Console.WriteLine("Virhe: Tietokantaan ei saatu yhteyttä!");
+            Console.WriteLine("Tarkista että XAMPP MySQL on käynnissä.");
+            Console.WriteLine("\nPaina jotain nappia lopettaaksesi...");
+            Console.ReadKey();
+            return;
+        }
+
         // Pääsilmukka - ohjelma pyörii kunnes käyttäjä valitsee exit
         while (true)
         {
-            LoadList();         // Ladataan tiedot tiedostosta
+            // Ladataan merkinnät tietokannasta
+            entries = Database.LoadEntries();
+
             Console.Clear();
 
             // Ohjelman otsikko
@@ -299,7 +250,7 @@ class Program
             Console.WriteLine("\texit - Sulje ohjelma\n");
 
             // Luetaan käyttäjän valinta
-            switch (Console.ReadLine()?.ToLower())
+            switch ((Console.ReadLine() ?? "").ToLower())
             {
                 case "l": // Lisää merkintä
                     Console.Clear();
