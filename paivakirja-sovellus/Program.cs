@@ -59,6 +59,7 @@ class Program
             entries = Database.LoadEntries();
 
             Console.Clear();
+            Console.Write("\x1b[3J");
             paivakirjalista();
             Console.WriteLine("Merkintä lisätty!\n");
         }
@@ -235,6 +236,7 @@ class Program
             entries = Database.LoadEntries();
 
             Console.Clear();
+            Console.Write("\x1b[3J");
 
             // Ohjelman otsikko
             Console.WriteLine("\tPäiväkirjasovellus");
@@ -254,16 +256,19 @@ class Program
             {
                 case "l": // Lisää merkintä
                     Console.Clear();
+                    Console.Write("\x1b[3J");
                     lisaatekstia();
                     break;
 
                 case "m": // Muokkaa merkintää
                     Console.Clear();
+                    Console.Write("\x1b[3J");
                     muokkaatekstia();
                     break;
 
                 case "p": // Poista merkintä
                     Console.Clear();
+                    Console.Write("\x1b[3J");
                     poistatekstia();
                     break;
 
