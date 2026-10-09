@@ -1,24 +1,67 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
+using System.Linq;
 
 class Program
 {
     // ========== MUUTTUJIA ==========
-    static List<DiaryEntry> entries = new List<DiaryEntry>(); // Lista kaikista päiväkirjamerkinnöistä
+    static List<DiaryEntry> entries = new List<DiaryEntry>();        // Kaikki tietokannasta ladatut merkinnät
+    static List<DiaryEntry> nakyvatMerkinnat = new List<DiaryEntry>(); // Näytettävät merkinnät (suodatettu tai kaikki)
 
     const int MerkintojaPerSivu = 10;  // Montako merkintää näytetään yhdellä sivulla
     static int nykyinenSivu = 1;       // Minkä sivun merkinnät näytetään tällä hetkellä
 
+    // Haku/suodatin-asetukset. Null/tyhjä tarkoittaa ettei kyseistä suodatinta käytetä
+    static string? hakuSana = null;
+    static DateTime? suodatinAlkaen = null;
+    static DateTime? suodatinPaattyen = null;
+
+    static bool SuodatinAktiivinen => hakuSana != null || suodatinAlkaen.HasValue || suodatinPaattyen.HasValue;
+
     // ========== FUNKTIOT ==========
+    /* Merkintöjen lataus ja suodatus */
+    // Lataa merkinnät tietokannasta ja soveltaa nykyisen haku-/suodatintilan
+    static void lataaMerkinnat()
+    {
+        entries = Database.LoadEntries();
+        nakyvatMerkinnat = suodataMerkinnat();
+    }
+
+    // Suodattaa entries-listan nykyisten hakuSana/suodatinAlkaen/suodatinPaattyen -arvojen perusteella
+    static List<DiaryEntry> suodataMerkinnat()
+    {
+        IEnumerable<DiaryEntry> tulos = entries;
+
+        if (!string.IsNullOrWhiteSpace(hakuSana))
+        {
+            tulos = tulos.Where(e =>
+                e.Title.Contains(hakuSana, StringComparison.OrdinalIgnoreCase) ||
+                e.Content.Contains(hakuSana, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (suodatinAlkaen.HasValue)
+        {
+            tulos = tulos.Where(e => e.Date.Date >= suodatinAlkaen.Value.Date);
+        }
+
+        if (suodatinPaattyen.HasValue)
+        {
+            tulos = tulos.Where(e => e.Date.Date <= suodatinPaattyen.Value.Date);
+        }
+
+        return tulos.ToList();
+    }
+
     /* Sivujen määrän laskeminen */
     // Laskee kuinka monta sivua tarvitaan merkintöjen listaamiseen
     static int laskeSivujenMaara()
     {
-        if (entries.Count == 0)
+        if (nakyvatMerkinnat.Count == 0)
             return 1;
 
-        return (int)Math.Ceiling(entries.Count / (double)MerkintojaPerSivu);
+        return (int)Math.Ceiling(nakyvatMerkinnat.Count / (double)MerkintojaPerSivu);
     }
 
     /* Päiväkirja lista */
@@ -28,8 +71,13 @@ class Program
     {
         Console.WriteLine("Päiväkirjan merkinnät:\n");
 
-        // Jos listassa ei ole yhtään merkintää
-        if (entries.Count == 0)
+        if (SuodatinAktiivinen)
+        {
+            Console.WriteLine($"\t[Suodatin aktiivinen - löytyi {nakyvatMerkinnat.Count} merkintää]\n");
+        }
+
+        // Jos (suodatetussa) listassa ei ole yhtään merkintää
+        if (nakyvatMerkinnat.Count == 0)
         {
             Console.WriteLine("\t(Ei merkintöjä vielä)\n");
             return; // Poistutaan funktiosta heti
@@ -37,17 +85,17 @@ class Program
 
         int sivujenMaara = laskeSivujenMaara();
 
-        // Varmistetaan että nykyinen sivu on yhä kelvollinen (esim. merkinnän poiston jälkeen)
+        // Varmistetaan että nykyinen sivu on yhä kelvollinen (esim. merkinnän poiston tai suodatuksen jälkeen)
         if (nykyinenSivu < 1) nykyinenSivu = 1;
         if (nykyinenSivu > sivujenMaara) nykyinenSivu = sivujenMaara;
 
         int alkuIndeksi = (nykyinenSivu - 1) * MerkintojaPerSivu;
-        int loppuIndeksi = Math.Min(alkuIndeksi + MerkintojaPerSivu, entries.Count);
+        int loppuIndeksi = Math.Min(alkuIndeksi + MerkintojaPerSivu, nakyvatMerkinnat.Count);
 
         // Käydään nykyisen sivun merkinnät läpi ja tulostetaan ne
         for (int i = alkuIndeksi; i < loppuIndeksi; i++)
         {
-            var e = entries[i];
+            var e = nakyvatMerkinnat[i];
             Console.WriteLine($"\t{i + 1}. [{e.Date:dd.MM.yyyy HH:mm}] {e.Title}");
             Console.WriteLine($"\t   {e.Content}\n");
         }
@@ -108,7 +156,7 @@ class Program
             Database.AddEntry(uusi);
 
             // Päivitetään paikallinen lista
-            entries = Database.LoadEntries();
+            lataaMerkinnat();
 
             Console.Clear();
             Console.Write("\x1b[3J");
@@ -118,6 +166,81 @@ class Program
         else // Molemmat kentät olivat tyhjiä
         {
             Console.WriteLine("\nMolemmat kentät olivat tyhjiä. Merkintää ei lisätty.\n");
+        }
+
+        Console.Write("Paina jotain nappia jatkaaksesi...");
+        Console.ReadKey();
+    }
+
+    /* Päivämäärän jäsennys suodatinta varten */
+    // Jäsentää käyttäjän syöttämän päivämäärän kiinteillä muodoilla (ei riipu järjestelmän
+    // kulttuuriasetuksista, toisin kuin DateTime.TryParse)
+    static bool yritaJasentaaPvm(string syote, out DateTime pvm)
+    {
+        string[] formaatit = { "d.M.yyyy", "d.M.yy" };
+        return DateTime.TryParseExact(syote, formaatit, CultureInfo.InvariantCulture, DateTimeStyles.None, out pvm);
+    }
+
+    /* Haku ja suodatus */
+    // Kysyy käyttäjältä avainsanan ja/tai päivämääräväliin perustuvan suodattimen.
+    // Tyhjäksi jätetty kenttä poistaa kyseisen suodattimen käytöstä
+    static void asetaSuodatin()
+    {
+        Console.WriteLine("Hae / suodata merkintöjä:\n");
+        Console.WriteLine("(Jätä kenttä tyhjäksi jos et halua rajata sillä)\n");
+
+        Console.Write("\tAvainsana (otsikko tai sisältö): ");
+        string sana = (Console.ReadLine() ?? "").Trim();
+
+        Console.Write("\tAlkupäivä (esim. 1.1.2026): ");
+        string alkuSyote = (Console.ReadLine() ?? "").Trim();
+
+        Console.Write("\tLoppupäivä (esim. 31.12.2026): ");
+        string loppuSyote = (Console.ReadLine() ?? "").Trim();
+
+        hakuSana = string.IsNullOrWhiteSpace(sana) ? null : sana;
+
+        // Alkupäivä: tyhjä = ei rajoitusta, virheellinen = ilmoitetaan eikä rajoiteta
+        if (string.IsNullOrWhiteSpace(alkuSyote))
+        {
+            suodatinAlkaen = null;
+        }
+        else if (yritaJasentaaPvm(alkuSyote, out DateTime alku))
+        {
+            suodatinAlkaen = alku;
+        }
+        else
+        {
+            suodatinAlkaen = null;
+            Console.WriteLine($"\nVirheellinen alkupäivä '{alkuSyote}' (käytä muotoa pv.kk.vvvv), sitä ei käytetä suodattimena.");
+        }
+
+        // Loppupäivä: tyhjä = ei rajoitusta, virheellinen = ilmoitetaan eikä rajoiteta
+        if (string.IsNullOrWhiteSpace(loppuSyote))
+        {
+            suodatinPaattyen = null;
+        }
+        else if (yritaJasentaaPvm(loppuSyote, out DateTime loppu))
+        {
+            suodatinPaattyen = loppu;
+        }
+        else
+        {
+            suodatinPaattyen = null;
+            Console.WriteLine($"\nVirheellinen loppupäivä '{loppuSyote}' (käytä muotoa pv.kk.vvvv), sitä ei käytetä suodattimena.");
+        }
+
+        // Sovelletaan suodatin heti nykyiseen listaan ja palataan ensimmäiselle sivulle
+        nakyvatMerkinnat = suodataMerkinnat();
+        nykyinenSivu = 1;
+
+        if (SuodatinAktiivinen)
+        {
+            Console.WriteLine($"\nSuodatin asetettu. Löytyi {nakyvatMerkinnat.Count} merkintää.\n");
+        }
+        else
+        {
+            Console.WriteLine("\nSuodatin tyhjennetty, näytetään kaikki merkinnät.\n");
         }
 
         Console.Write("Paina jotain nappia jatkaaksesi...");
@@ -137,7 +260,7 @@ class Program
             paivakirjalista(true);
 
             // Jos listassa ei ole merkintöjä, ei voida valita mitään
-            if (entries.Count == 0)
+            if (nakyvatMerkinnat.Count == 0)
             {
                 Console.Write("Paina jotain nappia jatkaaksesi...");
                 Console.ReadKey();
@@ -172,9 +295,9 @@ class Program
                 int indeksi = numero - 1; // Lista alkaa nollasta, siksi -1
 
                 // Tarkistetaan onko indeksi listan rajojen sisällä
-                if (indeksi >= 0 && indeksi < entries.Count)
+                if (indeksi >= 0 && indeksi < nakyvatMerkinnat.Count)
                 {
-                    return entries[indeksi];
+                    return nakyvatMerkinnat[indeksi];
                 }
 
                 Console.WriteLine("\nVirheellinen numero!\n");
@@ -232,7 +355,7 @@ class Program
         Database.UpdateEntry(entry);
 
         // Päivitetään paikallinen lista
-        entries = Database.LoadEntries();
+        lataaMerkinnat();
 
         Console.WriteLine("\nMerkintä muokattu!\n");
 
@@ -266,7 +389,7 @@ class Program
                 Database.DeleteEntry(entry.Id);
 
                 // Päivitetään paikallinen lista
-                entries = Database.LoadEntries();
+                lataaMerkinnat();
 
                 Console.WriteLine("\nPoistaminen onnistui!\n");
                 break;
@@ -372,7 +495,7 @@ class Program
         Console.WriteLine("Asetukset:\n");
         Console.WriteLine("\tm - Muuta yhteysasetuksia");
         Console.WriteLine("\td - Poista tallennetut asetukset\n");
-        Console.WriteLine("\ttakaisin - Palaa päävalikkoon\n");
+        Console.WriteLine("\tx - Palaa päävalikkoon\n");
 
         Console.Write("Valintasi: ");
         string valinta = (Console.ReadLine() ?? "").Trim().ToLower();
@@ -572,8 +695,8 @@ class Program
         // Pääsilmukka - ohjelma pyörii kunnes käyttäjä valitsee exit
         while (true)
         {
-            // Ladataan merkinnät tietokannasta
-            entries = Database.LoadEntries();
+            // Ladataan merkinnät tietokannasta ja sovelletaan nykyinen suodatin
+            lataaMerkinnat();
 
             Console.Clear();
             Console.Write("\x1b[3J");
@@ -588,7 +711,8 @@ class Program
             Console.WriteLine("Mitä haluat tehdä?\n");
             Console.WriteLine("\tl - Lisää merkintä");
             Console.WriteLine("\tm - Muokkaa merkintää");
-            Console.WriteLine("\tp - Poista merkintä\n");
+            Console.WriteLine("\tp - Poista merkintä");
+            Console.WriteLine("\th - Hae/Suodata merkintöjä\n");
             Console.WriteLine("\tsettings - Yhteysasetukset");
             Console.WriteLine("\texit - Sulje ohjelma\n");
 
@@ -620,6 +744,12 @@ class Program
                     Console.Clear();
                     Console.Write("\x1b[3J");
                     poistatekstia();
+                    break;
+
+                case "h": // Hae/Suodata merkintöjä
+                    Console.Clear();
+                    Console.Write("\x1b[3J");
+                    asetaSuodatin();
                     break;
 
                 case "settings": // Yhteysasetukset
