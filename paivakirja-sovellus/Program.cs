@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -19,6 +19,35 @@ class Program
     static DateTime? suodatinPaattyen = null;
 
     static bool SuodatinAktiivinen => hakuSana != null || suodatinAlkaen.HasValue || suodatinPaattyen.HasValue;
+
+    // ========== VÄRIAPUFUNKTIOT ==========
+    // Kirjoittaa tekstin halutulla värillä ja palauttaa konsolin värin oletukseen heti perään,
+    // jotta väri ei vuoda seuraavaan tulostukseen
+    static void KirjoitaVarilla(string teksti, ConsoleColor vari, bool uusiRivi = true)
+    {
+        Console.ForegroundColor = vari;
+        if (uusiRivi) Console.WriteLine(teksti); else Console.Write(teksti);
+        Console.ResetColor();
+    }
+
+    // Otsikot ja näkymien pääotsikot
+    static void Otsikko(string teksti, bool uusiRivi = true) => KirjoitaVarilla(teksti, ConsoleColor.Cyan, uusiRivi);
+
+    // Onnistuneet toiminnot (lisäys, muokkaus, poisto, tallennus, yhteys toimii...)
+    static void Onnistui(string teksti, bool uusiRivi = true) => KirjoitaVarilla(teksti, ConsoleColor.Green, uusiRivi);
+
+    // Virheet ja epäonnistumiset
+    static void Virhe(string teksti, bool uusiRivi = true) => KirjoitaVarilla(teksti, ConsoleColor.Red, uusiRivi);
+
+    // Varoitukset ja huomiot (ei suoranainen virhe, mutta vaatii huomiota - esim. vahvistuskysymykset)
+    static void Varoitus(string teksti, bool uusiRivi = true) => KirjoitaVarilla(teksti, ConsoleColor.Yellow, uusiRivi);
+
+    // Ohjeet ja muu toissijainen apuväriteksti (ei itsessään näppäiltäviä komentoja)
+    static void Vihje(string teksti, bool uusiRivi = true) => KirjoitaVarilla(teksti, ConsoleColor.DarkGray, uusiRivi);
+
+    // Valikkokomennot ja ohjaimet (esim. "l - Lisää merkintä", "k - KYLLÄ / e - EI", sivunavigointi).
+    // Väri+tausta-yhdistelmä erottaa nämä selvästi muusta tekstistä
+    static void Komento(string teksti, bool uusiRivi = true) => KirjoitaVarilla(teksti, ConsoleColor.DarkCyan, uusiRivi);
 
     // ========== FUNKTIOT ==========
     /* Merkintöjen lataus ja suodatus */
@@ -69,17 +98,17 @@ class Program
     // naytaValintaohjeet lisää sivunavigoinnin yhteyteen myös n/e/x-ohjeet (käytetään muokkaus- ja poistovalikossa)
     static void paivakirjalista(bool naytaValintaohjeet = false)
     {
-        Console.WriteLine("Päiväkirjan merkinnät:\n");
+        Otsikko("Päiväkirjan merkinnät:\n");
 
         if (SuodatinAktiivinen)
         {
-            Console.WriteLine($"\t[Suodatin aktiivinen - löytyi {nakyvatMerkinnat.Count} merkintää]\n");
+            Varoitus($"\t[Suodatin aktiivinen - löytyi {nakyvatMerkinnat.Count} merkintää]\n");
         }
 
         // Jos (suodatetussa) listassa ei ole yhtään merkintää
         if (nakyvatMerkinnat.Count == 0)
         {
-            Console.WriteLine("\t(Ei merkintöjä vielä)\n");
+            Vihje("\t(Ei merkintöjä vielä)\n");
             return; // Poistutaan funktiosta heti
         }
 
@@ -103,15 +132,16 @@ class Program
         // Näytetään sivunavigointi vain jos sivuja on enemmän kuin yksi
         if (sivujenMaara > 1)
         {
-            Console.WriteLine($"\tSivu {nykyinenSivu}/{sivujenMaara}");
+            Vihje($"\tSivu {nykyinenSivu}/{sivujenMaara}");
 
             if (naytaValintaohjeet)
             {
                 // Merkinnän valintanäkymässä sivua vaihdetaan n/e-komennoilla, ei suoraan numerolla
-                Console.WriteLine("\tn - Seuraava sivu  e - Edellinen sivu  x - Peruuta\n");
+                Komento("\tn - Seuraava sivu  e - Edellinen sivu  x - Peruuta\n");
             }
             else
             {
+                Console.ForegroundColor = ConsoleColor.DarkCyan;
                 Console.Write("\tSiirry sivulle (numero): ");
 
                 for (int sivu = 1; sivu <= sivujenMaara; sivu++)
@@ -119,13 +149,14 @@ class Program
                     Console.Write(sivu == nykyinenSivu ? $"[{sivu}] " : $"{sivu} ");
                 }
 
+                Console.ResetColor();
                 Console.WriteLine("\n");
             }
         }
         else if (naytaValintaohjeet)
         {
             // Vain yksi sivu - ei sivunavigointia, mutta peruutusmahdollisuus näytetään silti
-            Console.WriteLine("\tx - Peruuta\n");
+            Komento("\tx - Peruuta\n");
         }
     }
 
@@ -133,7 +164,7 @@ class Program
     // Lisää uuden merkinnän tietokantaan
     static void lisaatekstia()
     {
-        Console.WriteLine("Lisää uusi merkintä:\n");
+        Otsikko("Lisää uusi merkintä:\n");
 
         Console.Write("\tOtsikko: ");
         string title = Console.ReadLine() ?? "";
@@ -161,14 +192,14 @@ class Program
             Console.Clear();
             Console.Write("\x1b[3J");
             paivakirjalista();
-            Console.WriteLine("Merkintä lisätty!\n");
+            Onnistui("Merkintä lisätty!\n");
         }
         else // Molemmat kentät olivat tyhjiä
         {
-            Console.WriteLine("\nMolemmat kentät olivat tyhjiä. Merkintää ei lisätty.\n");
+            Varoitus("\nMolemmat kentät olivat tyhjiä. Merkintää ei lisätty.\n");
         }
 
-        Console.Write("Paina jotain nappia jatkaaksesi...");
+        Vihje("Paina jotain nappia jatkaaksesi...", false);
         Console.ReadKey();
     }
 
@@ -186,8 +217,8 @@ class Program
     // Tyhjäksi jätetty kenttä poistaa kyseisen suodattimen käytöstä
     static void asetaSuodatin()
     {
-        Console.WriteLine("Hae / suodata merkintöjä:\n");
-        Console.WriteLine("(Jätä kenttä tyhjäksi jos et halua rajata sillä)\n");
+        Otsikko("Hae / suodata merkintöjä:\n");
+        Vihje("(Jätä kenttä tyhjäksi jos et halua rajata sillä)\n");
 
         Console.Write("\tAvainsana (otsikko tai sisältö): ");
         string sana = (Console.ReadLine() ?? "").Trim();
@@ -212,7 +243,7 @@ class Program
         else
         {
             suodatinAlkaen = null;
-            Console.WriteLine($"\nVirheellinen alkupäivä '{alkuSyote}' (käytä muotoa pv.kk.vvvv), sitä ei käytetä suodattimena.");
+            Virhe($"\nVirheellinen alkupäivä '{alkuSyote}' (käytä muotoa pv.kk.vvvv), sitä ei käytetä suodattimena.");
         }
 
         // Loppupäivä: tyhjä = ei rajoitusta, virheellinen = ilmoitetaan eikä rajoiteta
@@ -227,7 +258,7 @@ class Program
         else
         {
             suodatinPaattyen = null;
-            Console.WriteLine($"\nVirheellinen loppupäivä '{loppuSyote}' (käytä muotoa pv.kk.vvvv), sitä ei käytetä suodattimena.");
+            Virhe($"\nVirheellinen loppupäivä '{loppuSyote}' (käytä muotoa pv.kk.vvvv), sitä ei käytetä suodattimena.");
         }
 
         // Sovelletaan suodatin heti nykyiseen listaan ja palataan ensimmäiselle sivulle
@@ -236,14 +267,14 @@ class Program
 
         if (SuodatinAktiivinen)
         {
-            Console.WriteLine($"\nSuodatin asetettu. Löytyi {nakyvatMerkinnat.Count} merkintää.\n");
+            Onnistui($"\nSuodatin asetettu. Löytyi {nakyvatMerkinnat.Count} merkintää.\n");
         }
         else
         {
-            Console.WriteLine("\nSuodatin tyhjennetty, näytetään kaikki merkinnät.\n");
+            Vihje("\nSuodatin tyhjennetty, näytetään kaikki merkinnät.\n");
         }
 
-        Console.Write("Paina jotain nappia jatkaaksesi...");
+        Vihje("Paina jotain nappia jatkaaksesi...", false);
         Console.ReadKey();
     }
 
@@ -262,7 +293,7 @@ class Program
             // Jos listassa ei ole merkintöjä, ei voida valita mitään
             if (nakyvatMerkinnat.Count == 0)
             {
-                Console.Write("Paina jotain nappia jatkaaksesi...");
+                Vihje("Paina jotain nappia jatkaaksesi...", false);
                 Console.ReadKey();
                 return null;
             }
@@ -300,14 +331,14 @@ class Program
                     return nakyvatMerkinnat[indeksi];
                 }
 
-                Console.WriteLine("\nVirheellinen numero!\n");
+                Virhe("\nVirheellinen numero!\n");
             }
             else // Syöte ei ollut numero eikä tunnettu komento
             {
-                Console.WriteLine("\nVirheellinen valinta!\n");
+                Virhe("\nVirheellinen valinta!\n");
             }
 
-            Console.Write("Paina jotain nappia jatkaaksesi...");
+            Vihje("Paina jotain nappia jatkaaksesi...", false);
             Console.ReadKey();
         }
     }
@@ -325,7 +356,7 @@ class Program
         Console.Clear();
         Console.Write("\x1b[3J");
 
-        Console.WriteLine($"Nykyinen merkintä:\n");
+        Otsikko("Nykyinen merkintä:\n");
         Console.WriteLine($"\tPäivämäärä: {entry.Date:dd.MM.yyyy HH:mm}");
         Console.WriteLine($"\tOtsikko:    {entry.Title}");
         Console.WriteLine($"\tSisältö:    {entry.Content}\n");
@@ -357,9 +388,9 @@ class Program
         // Päivitetään paikallinen lista
         lataaMerkinnat();
 
-        Console.WriteLine("\nMerkintä muokattu!\n");
+        Onnistui("\nMerkintä muokattu!\n");
 
-        Console.Write("Paina jotain nappia jatkaaksesi...");
+        Vihje("Paina jotain nappia jatkaaksesi...", false);
         Console.ReadKey();
     }
 
@@ -376,10 +407,10 @@ class Program
         Console.Clear();
         Console.Write("\x1b[3J");
 
-        Console.WriteLine("Haluatko varmasti poistaa tämän merkinnän?\n");
+        Varoitus("Haluatko varmasti poistaa tämän merkinnän?\n");
         Console.WriteLine($"\t[{entry.Date:dd.MM.yyyy HH:mm}] {entry.Title}");
         Console.WriteLine($"\t{entry.Content}\n");
-        Console.WriteLine("k - KYLLÄ / e - EI\n");
+        Komento("k - KYLLÄ / e - EI\n");
 
         // Kysytään vahvistus käyttäjältä
         switch ((Console.ReadLine() ?? "").Trim().ToLower())
@@ -391,19 +422,19 @@ class Program
                 // Päivitetään paikallinen lista
                 lataaMerkinnat();
 
-                Console.WriteLine("\nPoistaminen onnistui!\n");
+                Onnistui("\nPoistaminen onnistui!\n");
                 break;
 
             case "e": // Käyttäjä valitsi ei
-                Console.WriteLine("\nPoistaminen keskeytetty.\n");
+                Varoitus("\nPoistaminen keskeytetty.\n");
                 break;
 
             default: // Jokin muu syöte
-                Console.WriteLine("\nVirheellinen valinta. Poistaminen keskeytetty.\n");
+                Virhe("\nVirheellinen valinta. Poistaminen keskeytetty.\n");
                 break;
         }
 
-        Console.Write("Paina jotain nappia jatkaaksesi...");
+        Vihje("Paina jotain nappia jatkaaksesi...", false);
         Console.ReadKey();
     }
 
@@ -414,7 +445,7 @@ class Program
     {
         DbConfig config = new DbConfig();
 
-        Console.WriteLine("(Jätä kenttä tyhjäksi käyttääksesi suluissa näkyvää oletusarvoa)\n");
+        Vihje("(Jätä kenttä tyhjäksi käyttääksesi suluissa näkyvää oletusarvoa)\n");
 
         Console.Write($"\tPalvelin [{nykyinen?.Server ?? "localhost"}]: ");
         string server = Console.ReadLine() ?? "";
@@ -443,7 +474,7 @@ class Program
     // Antaa käyttäjälle mahdollisuuden vaihtaa yhteysasetuksia ohjelman ollessa käynnissä
     static void muokkaaAsetuksia(ref DbConfig config)
     {
-        Console.WriteLine("Tietokannan yhteysasetukset:\n");
+        Otsikko("Tietokannan yhteysasetukset:\n");
 
         DbConfig uusi = kysyYhteysasetukset(config);
 
@@ -454,7 +485,7 @@ class Program
         {
             // Palautetaan vanhat, toimivat asetukset käyttöön
             Database.Configure(config);
-            Console.WriteLine("\nYhteys epäonnistui uusilla asetuksilla. Vanhat asetukset säilytetty.\n");
+            Virhe("\nYhteys epäonnistui uusilla asetuksilla. Vanhat asetukset säilytetty.\n");
         }
         else
         {
@@ -474,17 +505,17 @@ class Program
             {
                 // Palautetaan vanhat, toimivat asetukset käyttöön
                 Database.Configure(config);
-                Console.WriteLine($"\nTietokanta '{uusi.Database}' ei vastaa Päiväkirjasovelluksen odottamaa rakennetta. Vanhat asetukset säilytetty.\n");
+                Virhe($"\nTietokanta '{uusi.Database}' ei vastaa Päiväkirjasovelluksen odottamaa rakennetta. Vanhat asetukset säilytetty.\n");
             }
             else
             {
                 uusi.Save();
                 config = uusi;
-                Console.WriteLine("\nYhteysasetukset tallennettu ja yhteys toimii!\n");
+                Onnistui("\nYhteysasetukset tallennettu ja yhteys toimii!\n");
             }
         }
 
-        Console.Write("Paina jotain nappia jatkaaksesi...");
+        Vihje("Paina jotain nappia jatkaaksesi...", false);
         Console.ReadKey();
     }
 
@@ -492,10 +523,10 @@ class Program
     // Näyttää asetusten alivalikon: yhteysasetusten muokkaus tai niiden poistaminen kokonaan
     static void nayttaAsetusValikko(ref DbConfig config)
     {
-        Console.WriteLine("Asetukset:\n");
-        Console.WriteLine("\tm - Muuta yhteysasetuksia");
-        Console.WriteLine("\td - Poista tallennetut asetukset\n");
-        Console.WriteLine("\tx - Palaa päävalikkoon\n");
+        Otsikko("Asetukset:\n");
+        Komento("\tm - Muuta yhteysasetuksia");
+        Komento("\td - Poista tallennetut asetukset\n");
+        Komento("\tx - Palaa päävalikkoon\n");
 
         Console.Write("Valintasi: ");
         string valinta = (Console.ReadLine() ?? "").Trim().ToLower();
@@ -521,9 +552,9 @@ class Program
     // Poistaa koko asetuskansion (AppData\Roaming\PaivakirjaSovellus) ja sulkee ohjelman
     static void poistaAsetukset()
     {
-        Console.WriteLine("Haluatko varmasti poistaa tallennetut yhteysasetukset?");
-        Console.WriteLine("Tämä poistaa koko asetuskansion ja ohjelma suljetaan.\n");
-        Console.WriteLine("k - KYLLÄ / e - EI\n");
+        Varoitus("Haluatko varmasti poistaa tallennetut yhteysasetukset?");
+        Varoitus("Tämä poistaa koko asetuskansion ja ohjelma suljetaan.\n");
+        Komento("k - KYLLÄ / e - EI\n");
 
         string valinta = (Console.ReadLine() ?? "").Trim().ToLower();
 
@@ -531,16 +562,16 @@ class Program
         {
             DbConfig.DeleteConfigFolder();
 
-            Console.WriteLine("\nAsetukset poistettu. Ohjelma suljetaan...\n");
-            Console.Write("Paina jotain nappia lopettaaksesi...");
+            Onnistui("\nAsetukset poistettu. Ohjelma suljetaan...\n");
+            Vihje("Paina jotain nappia lopettaaksesi...", false);
             Console.ReadKey();
 
             Environment.Exit(0);
         }
         else
         {
-            Console.WriteLine("\nPoistaminen keskeytetty.\n");
-            Console.Write("Paina jotain nappia jatkaaksesi...");
+            Varoitus("\nPoistaminen keskeytetty.\n");
+            Vihje("Paina jotain nappia jatkaaksesi...", false);
             Console.ReadKey();
         }
     }
@@ -551,8 +582,8 @@ class Program
     static bool kysyLuodaankoUusiTietokanta()
     {
         Console.WriteLine("Haluatko liittyä olemassa olevaan tietokantaan, vai luoda uuden?\n");
-        Console.WriteLine("\tl - Liity olemassa olevaan tietokantaan");
-        Console.WriteLine("\tu - Luo uusi tietokanta\n");
+        Komento("\tl - Liity olemassa olevaan tietokantaan");
+        Komento("\tu - Luo uusi tietokanta\n");
 
         while (true)
         {
@@ -562,7 +593,7 @@ class Program
             if (valinta == "l") return false;
             if (valinta == "u") return true;
 
-            Console.WriteLine("\nVirheellinen valinta. Syötä 'l' tai 'u'.\n");
+            Virhe("\nVirheellinen valinta. Syötä 'l' tai 'u'.\n");
         }
     }
 
@@ -582,7 +613,7 @@ class Program
             }
             catch
             {
-                Console.WriteLine("\nVirhe: Palvelimeen ei saatu yhteyttä annetuilla tunnuksilla.");
+                Virhe("\nVirhe: Palvelimeen ei saatu yhteyttä annetuilla tunnuksilla.");
                 Console.WriteLine("Anna yhteysasetukset uudelleen:\n");
                 config = kysyYhteysasetukset(config);
                 continue;
@@ -593,14 +624,14 @@ class Program
                 // Nimi on vapaa - luodaan uusi tietokanta skriptin pohjalta
                 string sqlPolku = Path.Combine(AppContext.BaseDirectory, "PaivakirjaDB.sql");
                 Database.CreateDatabaseFromScript(config, sqlPolku);
-                Console.WriteLine($"\nTietokanta '{config.Database}' luotu!\n");
+                Onnistui($"\nTietokanta '{config.Database}' luotu!\n");
                 return config;
             }
 
             // Samannimine tietokanta löytyi palvelimelta - kysytään käyttäjältä mitä tehdään
-            Console.WriteLine($"\nTietokanta '{config.Database}' on jo olemassa palvelimella.\n");
-            Console.WriteLine("\tk - Käytä olemassa olevaa tietokantaa");
-            Console.WriteLine("\tn - Nimeä uusi tietokanta toisin\n");
+            Varoitus($"\nTietokanta '{config.Database}' on jo olemassa palvelimella.\n");
+            Komento("\tk - Käytä olemassa olevaa tietokantaa");
+            Komento("\tn - Nimeä uusi tietokanta toisin\n");
 
             Console.Write("Valintasi: ");
             string valinta = (Console.ReadLine() ?? "").Trim().ToLower();
@@ -630,8 +661,8 @@ class Program
 
         if (config == null)
         {
-            Console.WriteLine("\tPäiväkirjasovellus - Ensimmäinen käynnistys");
-            Console.WriteLine("\t-----------------------------------------\n");
+            Otsikko("\tPäiväkirjasovellus - Ensimmäinen käynnistys");
+            Otsikko("\t-----------------------------------------\n");
 
             bool luoUusi = kysyLuodaankoUusiTietokanta();
 
@@ -656,19 +687,19 @@ class Program
                 }
                 catch
                 {
-                    Console.WriteLine($"\nVirhe: Tietokantaan '{config.Database}' ei saatu yhteyttä annetuilla tiedoilla.");
-                    Console.WriteLine("Ohjelma suljetaan, asetuksia ei tallennettu.\n");
-                    Console.Write("Paina jotain nappia lopettaaksesi...");
+                    Virhe($"\nVirhe: Tietokantaan '{config.Database}' ei saatu yhteyttä annetuilla tiedoilla.");
+                    Virhe("Ohjelma suljetaan, asetuksia ei tallennettu.\n");
+                    Vihje("Paina jotain nappia lopettaaksesi...", false);
                     Console.ReadKey();
                     return;
                 }
 
                 if (!kelvollinen)
                 {
-                    Console.WriteLine($"\nVirhe: Tietokanta '{config.Database}' ei vastaa Päiväkirjasovelluksen odottamaa rakennetta.");
-                    Console.WriteLine("Varmista että liityt oikeaan tietokantaan, tai luo uusi tietokanta sen sijaan.");
-                    Console.WriteLine("\nOhjelma suljetaan, asetuksia ei tallennettu.\n");
-                    Console.Write("Paina jotain nappia lopettaaksesi...");
+                    Virhe($"\nVirhe: Tietokanta '{config.Database}' ei vastaa Päiväkirjasovelluksen odottamaa rakennetta.");
+                    Virhe("Varmista että liityt oikeaan tietokantaan, tai luo uusi tietokanta sen sijaan.");
+                    Virhe("\nOhjelma suljetaan, asetuksia ei tallennettu.\n");
+                    Vihje("Paina jotain nappia lopettaaksesi...", false);
                     Console.ReadKey();
                     return;
                 }
@@ -683,7 +714,7 @@ class Program
         // Testataan tietokantayhteys, ja kysytään asetukset uudelleen kunnes yhteys onnistuu
         while (!Database.TestConnection())
         {
-            Console.WriteLine("Virhe: Tietokantaan ei saatu yhteyttä annetuilla asetuksilla!\n");
+            Virhe("Virhe: Tietokantaan ei saatu yhteyttä annetuilla asetuksilla!\n");
             Console.WriteLine("Anna yhteysasetukset uudelleen:\n");
 
             config = kysyYhteysasetukset(config);
@@ -701,20 +732,21 @@ class Program
             Console.Clear();
             Console.Write("\x1b[3J");
 
-            // Ohjelman otsikko
-            Console.WriteLine("\tPäiväkirjasovellus");
-            Console.WriteLine("\t------------------\n");
+            // Ohjelman otsikko, tietokannan nimi näkyy perässä (vain otsikko alleviivataan)
+            const string otsikkoTeksti = "Päiväkirjasovellus";
+            Otsikko($"\t{otsikkoTeksti} - {config.Database}");
+            Otsikko($"\t{new string('-', otsikkoTeksti.Length)}\n");
 
             paivakirjalista();  // Näytetään nykyiset merkinnät
 
             // Käyttäjän valikko
             Console.WriteLine("Mitä haluat tehdä?\n");
-            Console.WriteLine("\tl - Lisää merkintä");
-            Console.WriteLine("\tm - Muokkaa merkintää");
-            Console.WriteLine("\tp - Poista merkintä");
-            Console.WriteLine("\th - Hae/Suodata merkintöjä\n");
-            Console.WriteLine("\tsettings - Yhteysasetukset");
-            Console.WriteLine("\texit - Sulje ohjelma\n");
+            Komento("\tl - Lisää merkintä");
+            Komento("\tm - Muokkaa merkintää");
+            Komento("\tp - Poista merkintä");
+            Komento("\th - Hae/Suodata merkintöjä\n");
+            Komento("\tsettings - Yhteysasetukset");
+            Komento("\texit - Sulje ohjelma\n");
 
             // Luetaan käyttäjän valinta
             string valinta = (Console.ReadLine() ?? "").Trim().ToLower();
