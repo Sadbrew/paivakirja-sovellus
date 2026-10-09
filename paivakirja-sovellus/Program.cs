@@ -476,42 +476,73 @@ class Program
     {
         Otsikko("Tietokannan yhteysasetukset:\n");
 
+        // Sama valinta kuin ensimmäisellä käynnistyksellä: liitytäänkö olemassa olevaan
+        // tietokantaan, vai luodaanko kokonaan uusi
+        bool luoUusi = kysyLuodaankoUusiTietokanta();
+
+        Console.WriteLine();
+
         DbConfig uusi = kysyYhteysasetukset(config);
 
-        // Kokeillaan uusia asetuksia ennen tallentamista
-        Database.Configure(uusi);
-
-        if (!Database.TestConnection())
+        if (luoUusi)
         {
-            // Palautetaan vanhat, toimivat asetukset käyttöön
-            Database.Configure(config);
-            Virhe("\nYhteys epäonnistui uusilla asetuksilla. Vanhat asetukset säilytetty.\n");
-        }
-        else
-        {
-            // Yhteys toimii - tarkistetaan vielä että tietokannan rakenne on oikea
-            bool kelvollinen;
+            // Sama nimiristiriitojen käsittely kuin ensimmäisellä käynnistyksellä: tarkistaa onko
+            // samanniminen tietokanta jo olemassa, ja luo sen tarvittaessa PaivakirjaDB.sql:n pohjalta
+            uusi = varmistaTietokannanLuonti(uusi);
 
-            try
-            {
-                kelvollinen = Database.HasValidSchema(uusi);
-            }
-            catch
-            {
-                kelvollinen = false;
-            }
+            Database.Configure(uusi);
 
-            if (!kelvollinen)
+            if (!Database.TestConnection())
             {
                 // Palautetaan vanhat, toimivat asetukset käyttöön
                 Database.Configure(config);
-                Virhe($"\nTietokanta '{uusi.Database}' ei vastaa Päiväkirjasovelluksen odottamaa rakennetta. Vanhat asetukset säilytetty.\n");
+                Virhe("\nYhteys epäonnistui uusilla asetuksilla. Vanhat asetukset säilytetty.\n");
             }
             else
             {
                 uusi.Save();
                 config = uusi;
                 Onnistui("\nYhteysasetukset tallennettu ja yhteys toimii!\n");
+            }
+        }
+        else
+        {
+            // Liitytään olemassa olevaan tietokantaan - sama virheenkäsittely kuin ensimmäisellä
+            // käynnistyksellä: kokeillaan yhteyttä ja tarkistetaan tietokannan rakenne
+            Database.Configure(uusi);
+
+            if (!Database.TestConnection())
+            {
+                // Palautetaan vanhat, toimivat asetukset käyttöön
+                Database.Configure(config);
+                Virhe("\nYhteys epäonnistui uusilla asetuksilla. Vanhat asetukset säilytetty.\n");
+            }
+            else
+            {
+                // Yhteys toimii - tarkistetaan vielä että tietokannan rakenne on oikea
+                bool kelvollinen;
+
+                try
+                {
+                    kelvollinen = Database.HasValidSchema(uusi);
+                }
+                catch
+                {
+                    kelvollinen = false;
+                }
+
+                if (!kelvollinen)
+                {
+                    // Palautetaan vanhat, toimivat asetukset käyttöön
+                    Database.Configure(config);
+                    Virhe($"\nTietokanta '{uusi.Database}' ei vastaa Päiväkirjasovelluksen odottamaa rakennetta. Vanhat asetukset säilytetty.\n");
+                }
+                else
+                {
+                    uusi.Save();
+                    config = uusi;
+                    Onnistui("\nYhteysasetukset tallennettu ja yhteys toimii!\n");
+                }
             }
         }
 
